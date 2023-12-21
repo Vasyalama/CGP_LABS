@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QPixmap, QImage
 from PySide6.QtCore import Qt
-import cv2
+from cv2 import filter2D, dilate, erode, boxFilter, cvtColor, adaptiveThreshold, COLOR_GRAY2BGR, imread, COLOR_BGR2GRAY
 import numpy as np
 from scipy.ndimage import minimum_filter, maximum_filter
 
@@ -92,7 +92,7 @@ class ImageProcessor(QWidget):
         file_dialog.setNameFilter("Images (*.png *.xpm *.jpg *.bmp)")
         if file_dialog.exec():
             file_path = file_dialog.selectedFiles()[0]
-            self.loaded_image = cv2.imread(file_path)
+            self.loaded_image = imread(file_path)
             self.original_image = self.loaded_image.copy()
             self.display_image()
 
@@ -116,7 +116,7 @@ class ImageProcessor(QWidget):
             kernel = np.array([[-1, -1, -1],
                                [-1, 9, -1],
                                [-1, -1, -1]])
-            sharpened_image = cv2.filter2D(self.loaded_image, -1, kernel)
+            sharpened_image = filter2D(self.loaded_image, -1, kernel)
             self.loaded_image = sharpened_image
             self.display_image()
 
@@ -126,8 +126,8 @@ class ImageProcessor(QWidget):
         image = image.astype(float)
 
         kernel = np.ones(window, np.uint8)
-        max_values = cv2.dilate(image, kernel)
-        min_values = cv2.erode(image, kernel)
+        max_values = dilate(image, kernel)
+        min_values = erode(image, kernel)
         
         local_threshold = (max_values + min_values)/2
         local_difference = max_values - min_values
@@ -140,7 +140,7 @@ class ImageProcessor(QWidget):
         output[image > local_threshold - 7]  = 1
 
 
-        mean = cv2.boxFilter(image, -1, ksize=window, normalize=True)
+        mean = boxFilter(image, -1, ksize=window, normalize=True)
         # print(mean)
 
         # local_contrast = cv2.dilate(image, np.ones(window)) - cv2.erode(image, np.ones(window))
@@ -164,22 +164,22 @@ class ImageProcessor(QWidget):
             contrast_threshold_user = int(self.contrast_threshold_edit.text())
 
             
-            gray_image = cv2.cvtColor(self.loaded_image, cv2.COLOR_BGR2GRAY)
+            gray_image = cvtColor(self.loaded_image, COLOR_BGR2GRAY)
             output = ImageProcessor.bernsen(gray_image, window = (half_size, half_size), contrast_threshold = contrast_threshold_user)
             output_image = (output * 255).astype(np.uint8)
-            self.loaded_image = cv2.cvtColor(output_image, cv2.COLOR_GRAY2BGR)
+            self.loaded_image = cvtColor(output_image, COLOR_GRAY2BGR)
             self.display_image()
  
     def apply_niblack_binarization(self):
         window_size=15
         k=-0.2
-        gray_image = cv2.cvtColor(self.loaded_image, cv2.COLOR_BGR2GRAY)
+        gray_image = cvtColor(self.loaded_image, COLOR_BGR2GRAY)
         gray_image_array = gray_image.astype(float)
 
-        mean_image = cv2.boxFilter(gray_image_array, -1, ksize=(window_size, window_size))
+        mean_image = boxFilter(gray_image_array, -1, ksize=(window_size, window_size))
         mean = mean_image.astype(float)
 
-        meanSquare = cv2.boxFilter(gray_image_array*gray_image_array, -1, ksize=(window_size, window_size))
+        meanSquare = boxFilter(gray_image_array*gray_image_array, -1, ksize=(window_size, window_size))
         deviation = (meanSquare - mean*mean)**0.5
 
         output = np.zeros_like(gray_image_array)
@@ -202,7 +202,7 @@ class ImageProcessor(QWidget):
 
         #         binary_image[y, x] = 255 if gray_image[y, x] > threshold else 0
         output_image = (output * 255).astype(np.uint8)
-        self.loaded_image = cv2.cvtColor(output_image, cv2.COLOR_GRAY2BGR)
+        self.loaded_image = cvtColor(output_image, COLOR_GRAY2BGR)
         self.display_image()
 
     def reset_image(self):
@@ -212,9 +212,9 @@ class ImageProcessor(QWidget):
     
     def apply_adaptive_threshold(self):
         if self.loaded_image is not None:
-            gray_image = cv2.cvtColor(self.loaded_image, cv2.COLOR_BGR2GRAY)
+            gray_image = cvtColor(self.loaded_image, COLOR_BGR2GRAY)
             
-            binary_image = cv2.adaptiveThreshold(
+            binary_image = adaptiveThreshold(
                 gray_image, 255,
                 cv2.ADAPTIVE_THRESH_MEAN_C,
                 cv2.THRESH_BINARY,
@@ -222,7 +222,7 @@ class ImageProcessor(QWidget):
                 10  
             )
 
-            self.loaded_image = cv2.cvtColor(binary_image, cv2.COLOR_GRAY2BGR)
+            self.loaded_image = cvtColor(binary_image, COLOR_GRAY2BGR)
             self.display_image()
 
     def resizeEvent(self, event):
